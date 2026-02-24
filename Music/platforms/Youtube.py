@@ -24,6 +24,7 @@ from Music import LOGGER
 from Music .utils .database import is_on_off
 from Music .utils .formatters import time_to_seconds
 from Music .utils .external_extractors import try_external_mp3_extraction ,retry_with_backoff ,try_invidious_extraction
+import functools
 ITALIC_TO_REGULAR =str .maketrans ({119860 :'A',119861 :'B',119862 :'C',119863 :'D',119864 :'E',119865 :'F',119866 :'G',119867 :'H',119868 :'I',119869 :'J',119870 :'K',119871 :'L',119872 :'M',119873 :'N',119874 :'O',119875 :'P',119876 :'Q',119877 :'R',119878 :'S',119879 :'T',119880 :'U',119881 :'V',119882 :'W',119883 :'X',119884 :'Y',119885 :'Z',119886 :'a',119887 :'b',119888 :'c',119889 :'d',119890 :'e',119891 :'f',119892 :'g',119893 :'h',119894 :'i',119895 :'j',119896 :'k',119897 :'l',119898 :'m',119899 :'n',119900 :'o',119901 :'p',119902 :'q',119903 :'r',119904 :'s',119905 :'t',119906 :'u',119907 :'v',119908 :'w',119909 :'x',119910 :'y',119911 :'z',120328 :'A',120329 :'B',120330 :'C',120331 :'D',120332 :'E',120333 :'F',120334 :'G',120335 :'H',120336 :'I',120337 :'J',120338 :'K',120339 :'L',120340 :'M',120341 :'N',120342 :'O',120343 :'P',120344 :'Q',120345 :'R',120346 :'S',120347 :'T',120348 :'U',120349 :'V',120350 :'W',120351 :'X',120352 :'Y',120353 :'Z',120354 :'a',120355 :'b',120356 :'c',120357 :'d',120358 :'e',120359 :'f',120360 :'g',120361 :'h',120362 :'i',120363 :'j',120364 :'k',120365 :'l',120366 :'m',120367 :'n',120368 :'o',120369 :'p',120370 :'q',120371 :'r',120372 :'s',120373 :'t',120374 :'u',120375 :'v',120376 :'w',120377 :'x',120378 :'y',120379 :'z',120380 :'A',120381 :'B',120382 :'C',120383 :'D',120384 :'E',120385 :'F',120386 :'G',120387 :'H',120388 :'I',120389 :'J',120390 :'K',120391 :'L',120392 :'M',120393 :'N',120394 :'O',120395 :'P',120396 :'Q',120397 :'R',120398 :'S',120399 :'T',120400 :'U',120401 :'V',120402 :'W',120403 :'X',120404 :'Y',120405 :'Z',120406 :'a',120407 :'b',120408 :'c',120409 :'d',120410 :'e',120411 :'f',120412 :'g',120413 :'h',120414 :'i',120415 :'j',120416 :'k',120417 :'l',120418 :'m',120419 :'n',120420 :'o',120421 :'p',120422 :'q',120423 :'r',120424 :'s',120425 :'t',120426 :'u',120427 :'v',120428 :'w',120429 :'x',120430 :'y',120431 :'z'})
 
 def convert_italic_unicode (text ):
@@ -33,6 +34,22 @@ from config import YT_API_KEY ,YTPROXY_URL as YTPROXY ,YOUTUBE_PROXY ,YOUTUBE_US
 COOKIEFILE_PATH =os.getenv('YT_COOKIES_PATH',None)
 
 logger =LOGGER (__name__ )
+
+def _run_ydl_suppressed(ydl_opts, urls):
+    """Run yt-dlp download while suppressing stdout/stderr and return exception string or None."""
+    old_stderr = sys.stderr
+    old_stdout = sys.stdout
+    sys.stderr = io.StringIO()
+    sys.stdout = io.StringIO()
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download(urls)
+        return None
+    except Exception as e:
+        return str(e)
+    finally:
+        sys.stderr = old_stderr
+        sys.stdout = old_stdout
 
 def _log_method (vid_id ,method ,api =None ):
 
@@ -1019,7 +1036,12 @@ class YouTubeAPI :
                             ydl_opts ['proxy']=YOUTUBE_PROXY
                         loop =asyncio .get_running_loop ()
                         with ThreadPoolExecutor (max_workers =2 )as executor :
-                            result =await loop .run_in_executor (executor ,lambda :create_ydl (ydl_opts ).download ([f'https://www.youtube.com/watch?v={vid_id }']))
+                            err =await loop .run_in_executor (executor ,functools .partial (_run_ydl_suppressed ,ydl_opts ,[f'https://www.youtube.com/watch?v={vid_id }']))
+                            if err and 'Sign in to confirm' in err:
+                                auth_required_count = 1
+                                logger .debug (f'      Config {i +1 }: BLOCKED by auth wall')
+                                logger .warning (f'   ⚠️ Video REQUIRES AUTHENTICATION - cannot extract directly')
+                                break
                         if os .path .exists (filepath ):
                             logger .info (f'✅ [4] YouTube yt-dlp success (config {i +1 })')
                             return filepath
@@ -1214,7 +1236,10 @@ class YouTubeAPI :
                             ydl_opts ['proxy']=YOUTUBE_PROXY
                         loop =asyncio .get_running_loop ()
                         with ThreadPoolExecutor (max_workers =2 )as executor :
-                            await loop .run_in_executor (executor ,lambda :create_ydl (ydl_opts ).download ([f'https://www.youtube.com/watch?v={vid_id }']))
+                            err =await loop .run_in_executor (executor ,functools .partial (_run_ydl_suppressed ,ydl_opts ,[f'https://www.youtube.com/watch?v={vid_id }']))
+                            if err and 'Sign in to confirm' in err:
+                                logger .debug (f'Invidious {inst }: auth blocked: {err.splitlines()[0][:120]}')
+                                continue
                         if os .path .exists (filepath ):
                             logger .info (f'\u2705 YouTube yt-dlp format {fmt } succeeded (final fallback)')
                             _log_method (vid_id ,'yt_dlp',self )
