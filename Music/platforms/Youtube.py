@@ -486,6 +486,37 @@ class YouTubeAPI :
                 logger .warning (f'Format {fmt } failed for video URL: {str (fmt_e )}')
                 continue
 
+        # If yt-dlp probing failed to return a direct stream URL, attempt fallbacks
+        try :
+            os .makedirs ('downloads',exist_ok =True )
+            safe_id = video_id or re .sub (r'[^0-9A-Za-z]','',link )[:32 ]
+            filepath =os .path .join ('downloads',f'{safe_id }.mp3')
+
+            logger .info (f'No direct stream URL from yt-dlp — attempting Invidious/external fallbacks for {link }')
+
+            # Try Invidious first (may provide direct audio stream)
+            try :
+                inv =await try_invidious_extraction (f'https://www.youtube.com/watch?v={video_id or link }',filepath )
+                if inv and os .path .exists (filepath ):
+                    logger .info (f'Invidious fallback succeeded for {link }')
+                    _log_method (video_id or safe_id ,'invidious',self )
+                    return (1 ,filepath )
+            except Exception as inv_e :
+                logger .debug (f'Invidious fallback error: {inv_e }')
+
+            # Then try external MP3 extraction services
+            try :
+                ext =await try_external_mp3_extraction (f'https://www.youtube.com/watch?v={video_id or link }',filepath )
+                if ext and os .path .exists (filepath ):
+                    logger .info (f'External MP3 fallback succeeded for {link }')
+                    _log_method (video_id or safe_id ,'external_service',self )
+                    return (1 ,filepath )
+            except Exception as ext_e :
+                logger .debug (f'External MP3 fallback error: {ext_e }')
+
+        except Exception as outer_e :
+            logger .debug (f'Fallback extraction failed: {outer_e }')
+
         return (0 ,"All format options failed")
 
     async def playlist (self ,link ,limit ,user_id ,videoid :Union [bool ,str ]=None ):
