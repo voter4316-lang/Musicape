@@ -10,24 +10,27 @@ API_ID =int (getenv ("API_ID","21457002"))
 API_HASH =getenv ("API_HASH","6f9f6b8fb05ef1f4d9916e901f27bf52")
 
 BOT_TOKEN =getenv ("BOT_TOKEN","8507183742:AAGJNPeHy0WOCB06et_5KCMx8ZOB-vALnYU")
+from urllib.parse import quote_plus  # на всякий случай, если пароль изменится
 
-_mongo_user =getenv ("MONGOUSER",getenv ("MONGO_INITDB_ROOT_USERNAME","mongo"))
-_mongo_pass =getenv ("MONGOPASSWORD",getenv ("MONGO_INITDB_ROOT_PASSWORD","TyIYFavtqzNXyzLvFBSvjmUiFiDqdHak"))
-_mongo_host =getenv ("MONGOHOST","mongodb.railway.internal")
-_mongo_port =getenv ("MONGOPORT","27017")
+_mongo_user = os.getenv("MONGOUSER", os.getenv("MONGO_INITDB_ROOT_USERNAME", "mongo"))
+_mongo_pass = os.getenv("MONGOPASSWORD", os.getenv("MONGO_INITDB_ROOT_PASSWORD", "TyIYFavtqzNXyzLvFBSvjmUiFiDqdHak"))
+_mongo_host = os.getenv("MONGOHOST", "mongodb.railway.internal")  # это fallback, но лучше не хардкодить
+_mongo_port = os.getenv("MONGOPORT", "27017")
 
-if getenv ("MONGO_URL"):
-    MONGO_DB_URI =getenv ("MONGO_URL")
-elif getenv ("MONGO_DB_URI"):
-    MONGO_DB_URI =getenv ("MONGO_DB_URI")
-else :
+# Базовая строка
+base_uri = os.getenv("MONGO_URL") or f"mongodb://{_mongo_user}:{quote_plus(_mongo_pass)}@{_mongo_host}:{_mongo_port}"
 
-    if _mongo_pass :
-        MONGO_DB_URI =f"mongodb://{_mongo_user }:{_mongo_pass }@{_mongo_host }:{_mongo_port }/music?authSource=admin"
-    else :
-        MONGO_DB_URI =f"mongodb://{_mongo_host }:{_mongo_port }/music"
+# Всегда добавляем /music?authSource=admin
+if "/music" not in base_uri and "?authSource=admin" not in base_uri:
+    if "?" in base_uri:
+        MONGO_DB_URI = base_uri + "&authSource=admin"
+    else:
+        MONGO_DB_URI = base_uri + "/music?authSource=admin"
+else:
+    MONGO_DB_URI = base_uri  # если уже есть — оставляем как есть
 
-MONGO_DB_NAME =getenv ("MONGO_DB_NAME","music")
+# Или жёстко:
+# MONGO_DB_URI = f"mongodb://{_mongo_user}:{quote_plus(_mongo_pass)}@{_mongo_host}:{_mongo_port}/music?authSource=admin"
 
 YTPROXY_URL =getenv ("YTPROXY_URL",None )
 YOUTUBE_PROXY =getenv ("YOUTUBE_PROXY",None )
