@@ -12,20 +12,19 @@ API_HASH = getenv("API_HASH", "6f9f6b8fb05ef1f4d9916e901f27bf52")
 
 BOT_TOKEN = getenv("BOT_TOKEN", "8507183742:AAGJNPeHy0WOCB06et_5KCMx8ZOB-vALnYU")
 
-# MongoDB конфиг — обновлённый fallback с новым паролем
+# MongoDB конфиг — новый пароль в fallback
 _mongo_user = getenv("MONGOUSER", getenv("MONGO_INITDB_ROOT_USERNAME", "mongo"))
 _mongo_pass = getenv(
     "MONGOPASSWORD",
-    getenv("MONGO_INITDB_ROOT_PASSWORD", "YPkRtMNlXnzFSHeMDxgSJsnNeJtpKzuz")  # ← новый пароль здесь
+    getenv("MONGO_INITDB_ROOT_PASSWORD", "RRQzMeMjoYhIVZRBVpYxPZisUOnbaczG")  # ← самый свежий пароль
 )
-_mongo_host = getenv("MONGOHOST", "mongodb.railway.internal")  # fallback, Railway переопределит
+_mongo_host = getenv("MONGOHOST", "mongodb.railway.internal")  # fallback, Railway подставит реальный
 _mongo_port = getenv("MONGOPORT", "27017")
 _mongo_db_name = getenv("MONGO_DB_NAME", "music")
 
-# Формируем MONGO_DB_URI — приоритет: переменные Railway
+# Формируем MONGO_DB_URI — приоритет переменным из Railway
 if getenv("MONGO_URL"):
     base_uri = getenv("MONGO_URL").rstrip("/")
-    # Добавляем /music?authSource=admin, если их нет
     if "?" in base_uri:
         if "authSource=" not in base_uri:
             MONGO_DB_URI = base_uri + "&authSource=admin"
@@ -45,7 +44,7 @@ elif getenv("MONGO_DB_URI"):
         MONGO_DB_URI = base_uri + f"/{_mongo_db_name}?authSource=admin"
 
 else:
-    # Ручной fallback — используем переменные или новый пароль
+    # Ручной сбор строки — самый надёжный вариант сейчас
     encoded_pass = quote_plus(_mongo_pass)
     MONGO_DB_URI = (
         f"mongodb://{_mongo_user}:{encoded_pass}@{_mongo_host}:{_mongo_port}"
@@ -54,7 +53,7 @@ else:
 
 MONGO_DB_NAME = _mongo_db_name
 
-# Отладка — всегда полезно видеть, что реально используется
+# Обязательная отладка — чтобы видеть, что реально используется
 print(f"[CONFIG] MONGO_DB_URI: {MONGO_DB_URI.replace(_mongo_pass, '***HIDDEN***')}")
 
 YTPROXY_URL = getenv("YTPROXY_URL", None)
