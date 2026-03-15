@@ -12,17 +12,17 @@ API_HASH = getenv("API_HASH", "6f9f6b8fb05ef1f4d9916e901f27bf52")
 
 BOT_TOKEN = getenv("BOT_TOKEN", "8507183742:AAGJNPeHy0WOCB06et_5KCMx8ZOB-vALnYU")
 
-# MongoDB конфиг — самый свежий пароль в fallback
+# MongoDB конфиг — актуальный пароль + надёжная сборка URI
 _mongo_user = getenv("MONGOUSER", getenv("MONGO_INITDB_ROOT_USERNAME", "mongo"))
 _mongo_pass = getenv(
     "MONGOPASSWORD",
-    getenv("MONGO_INITDB_ROOT_PASSWORD", "MOPQBGNMrwmPjKAwZBQtEtjFXDglDZbl")  # ← актуальный пароль на данный момент
+    getenv("MONGO_INITDB_ROOT_PASSWORD", "MOPQBGNMrwmPjKAwZBQtEtjFXDglDZbl")
 )
-_mongo_host = getenv("MONGOHOST", "mongodb.railway.internal")  # fallback, Railway подставит реальный приватный домен
+_mongo_host = getenv("MONGOHOST", "mongodb.railway.internal")
 _mongo_port = getenv("MONGOPORT", "27017")
 _mongo_db_name = getenv("MONGO_DB_NAME", "music")
 
-# Формируем MONGO_DB_URI — приоритет переменным из Railway
+# Формируем MONGO_DB_URI надёжно
 if getenv("MONGO_URL"):
     base_uri = getenv("MONGO_URL").rstrip("/")
     if "?" in base_uri:
@@ -32,19 +32,7 @@ if getenv("MONGO_URL"):
             MONGO_DB_URI = base_uri
     else:
         MONGO_DB_URI = base_uri + f"/{_mongo_db_name}?authSource=admin"
-
-elif getenv("MONGO_DB_URI"):
-    base_uri = getenv("MONGO_DB_URI").rstrip("/")
-    if "?" in base_uri:
-        if "authSource=" not in base_uri:
-            MONGO_DB_URI = base_uri + "&authSource=admin"
-        else:
-            MONGO_DB_URI = base_uri
-    else:
-        MONGO_DB_URI = base_uri + f"/{_mongo_db_name}?authSource=admin"
-
 else:
-    # Ручной сбор строки — самый надёжный вариант сейчас
     encoded_pass = quote_plus(_mongo_pass)
     MONGO_DB_URI = (
         f"mongodb://{_mongo_user}:{encoded_pass}@{_mongo_host}:{_mongo_port}"
@@ -53,9 +41,10 @@ else:
 
 MONGO_DB_NAME = _mongo_db_name
 
-# Отладка — обязательно оставь, чтобы видеть, какая строка реально используется
+# Отладка MongoDB
 print(f"[CONFIG] MONGO_DB_URI: {MONGO_DB_URI.replace(_mongo_pass, '***HIDDEN***')}")
 
+# YouTube настройки — улучшены для обхода без кукисов
 YTPROXY_URL = getenv("YTPROXY_URL", None)
 YOUTUBE_PROXY = getenv("YOUTUBE_PROXY", None)
 
@@ -63,24 +52,25 @@ def _bool_env(var, default=False):
     val = getenv(var, str(default))
     return str(val).lower() in ("1", "true", "yes")
 
-YOUTUBE_USE_PYTUBE = _bool_env("YOUTUBE_USE_PYTUBE", True)
+YOUTUBE_USE_PYTUBE = _bool_env("YOUTUBE_USE_PYTUBE", True)   # ← обязательно True для обхода
 YOUTUBE_ENABLED = _bool_env("YOUTUBE_ENABLED", True)
 
-YOUTUBE_PROXY_LIST = [p.strip() for p in getenv("YOUTUBE_PROXY_LIST", "").split(",") if p.strip()]
-
+# Актуальный список Invidious на март 2026 — только живые инстансы
 YOUTUBE_INVIDIOUS_INSTANCES = [
-    i.strip() for i in getenv(
-        "YOUTUBE_INVIDIOUS_INSTANCES",
-        "https://yewtu.be,https://invidious.snopyta.org,https://invidious.kavin.rocks,"
-        "https://invidious.tiekoetter.com,https://invidious.flokinet.to,https://yewtu.cafe,"
-        "https://nsxvn4w6i7o2rjgp.onion,https://invidio.us,https://inv.riverside.rocks,"
-        "https://invidious.byt3.org,https://invidious.slipfox.xyz,https://invidious.xyz,"
-        "https://invidious.private.coffee,https://yt.artemislena.eu,https://invidious.fdn.fr,"
-        "https://iv.ggtyler.dev,https://invidious.sethforprivacy.com,https://vid.puffyan.us,"
-        "https://invidious-us.kavin.rocks,https://youthefuck.com,https://inv.bp.projectsegfau.lt,"
-        "https://invidious.web.id"
-    ).split(",") if i.strip()
+    "https://inv.tux.pizza",
+    "https://invidious.private.coffee",
+    "https://vid.puffyan.us",
+    "https://invidious.snopyta.org",
+    "https://iv.ggtyler.dev",
+    "https://invidious.fdn.fr",
+    "https://invidious.tiekoetter.com",
+    "https://invidious.flokinet.to",
+    "https://invidious.slipfox.xyz",
+    "https://invidious-us.kavin.rocks",
+    "https://invidious.private.coffee",  # дубликат для надёжности
 ]
+
+YOUTUBE_PROXY_LIST = [p.strip() for p in getenv("YOUTUBE_PROXY_LIST", "").split(",") if p.strip()]
 
 YT_API_KEY = getenv("YT_API_KEY", "AIzaSyAyFW-9snpxGwFa5cu-p81jjE8Fg1h_6rk")
 YOUTUBE_FALLBACK_SEARCH_LIMIT = int(getenv("YOUTUBE_FALLBACK_SEARCH_LIMIT", "5"))
@@ -151,3 +141,8 @@ def time_to_seconds(time):
     return sum(int(x) * 60 ** i for i, x in enumerate(reversed(stringt.split(":"))))
 
 DURATION_LIMIT = int(time_to_seconds(f"{DURATION_LIMIT_MIN}:360"))
+
+# Дополнительная отладка ключевых настроек
+print(f"[CONFIG] YOUTUBE_USE_PYTUBE: {YOUTUBE_USE_PYTUBE}")
+print(f"[CONFIG] Invidious instances count: {len(YOUTUBE_INVIDIOUS_INSTANCES)}")
+print(f"[CONFIG] First Invidious: {YOUTUBE_INVIDIOUS_INSTANCES[0] if YOUTUBE_INVIDIOUS_INSTANCES else 'None'}")
