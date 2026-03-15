@@ -63,7 +63,7 @@ def _bool_env(var, default=False):
     val = getenv(var, str(default))
     return str(val).lower() in ("1", "true", "yes")
 
-YOUTUBE_USE_PYTUBE = _bool_env("YOUTUBE_USE_PYTUBE", False)
+YOUTUBE_USE_PYTUBE = _bool_env("YOUTUBE_USE_PYTUBE", True)
 YOUTUBE_ENABLED = _bool_env("YOUTUBE_ENABLED", False)
 
 YOUTUBE_PROXY_LIST = [p.strip() for p in getenv("YOUTUBE_PROXY_LIST", "").split(",") if p.strip()]
